@@ -75,7 +75,7 @@ def get_product_list(driver: CustomWebDriver, urls):
             page_content = driver.find_element(By.XPATH, '//span[@automation-id="totalProductsOutputText"]').text
             pages = page_content.split("of")
             total_products = int(pages[1])
-            if(total_products):
+            if(not total_products):
                 max_page = 1
             else :
                 max_page = int(total_products / perPage) + 1
