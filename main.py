@@ -11,128 +11,185 @@ from driver import CustomWebDriver
 import re
 import time
 
-base_url = "https://www.costco.com/cooktops.html"
+base_url = "https://www.costco.com"
 section_id = 1
 page = 1
 products = []
 perPage = 24
 
-def get_product_list(driver: CustomWebDriver):
+categories = [
+    "https://www.costco.com/appliances.html",
+    "https://www.costco.com/baby-kids.html",
+    "https://www.costco.com/beauty.html",
+    "https://www.costco.com/clothing.html",
+    "https://www.costco.com/computers.html",
+    "https://www.costco.com/electronics.html",
+    "https://www.costco.com/holiday-gifts.html",
+    "https://www.costco.com/furniture.html",
+    "https://www.costco.com/gift-cards-tickets.html",
+    "https://www.costco.com/grocery-household.html",
+    "https://www.costco.com/health-beauty.html",
+    "https://www.costco.com/seasonal.html",
+    "https://www.costco.com/installed-products.html",
+    "https://www.costco.com/home-and-decor.html",
+    "https://www.costco.com/hardware.html",
+    "https://www.costco.com/jewelry.html",
+    "https://www.costco.com/mattresses.html",
+    "https://www.costco.com/office-products.html",
+    "https://www.costco.com/patio-lawn-garden.html",
+    "https://www.costco.com/pet-supplies.html",
+    "https://www.costco.com/sports-fitness.html",
+    "https://www.costco.com/auto-tires.html",
+    "https://www.costco.com/special-events.html"
+    "https://www.costco.com/toys.html"
+]
+
+def is_relative_url(string):
+    # Check if the string starts with '/' and matches a valid URL path
+    pattern = r"^\/([a-z0-9\-._~!$&'()*+,;=:%]+\/?)*$"
+    return bool(re.match(pattern, string))
+
+def get_categories(driver: CustomWebDriver):
+    global categories
+    urls = []
+    for category in categories:
+        driver.get(category)
+        elements = driver.find_elements(By.CLASS_NAME, "external")
+        for element in elements:
+            driver.execute_script("arguments[0].scrollIntoView();", element)
+            if(is_relative_url(element.get_dom_attribute("href"))):
+                urls.append(base_url + element.get_dom_attribute("href"))
+                print(base_url + element.get_dom_attribute("href"))
+        
+    return urls
+
+def get_product_list(driver: CustomWebDriver, urls):
     global section_id
     
-    driver.get(base_url)
-    page_content = driver.find_element(By.XPATH, '//span[@automation-id="totalProductsOutputText"]').text
-    pages = page_content.split("of")
-    total_products = int(pages[1])
-    max_page = int(total_products / perPage) + 1
-    print(max_page)
-    
-    for i in range(1, max_page + 1):
-        driver.get(base_url + "?pageSize=24&currentPage=" + str(i))
+    count = 1
+    print("Category Count : " + str(len(urls)))
+    for url in urls:
+        print("Category : " + str(count))
+        driver.get(url)
+        try:
+            page_content = driver.find_element(By.XPATH, '//span[@automation-id="totalProductsOutputText"]').text
+            pages = page_content.split("of")
+            total_products = int(pages[1])
+            if(total_products):
+                max_page = 1
+            else :
+                max_page = int(total_products / perPage) + 1
+        except:
+            max_page = 1
+        print(max_page)
         
-        # Locate the script tag containing the JSON data
-        elements = driver.find_elements(By.CLASS_NAME, "product-tile-set")
-        print(len(elements))
-        # Extract the script content
-        for element in elements:
-            try:
-                driver.execute_script("arguments[0].scrollIntoView();", element)
-
-                image_url = ""
-
+        for i in range(1, max_page + 1):
+            driver.get(url + "?pageSize=24&currentPage=" + str(i))
+            
+            # Locate the script tag containing the JSON data
+            elements = driver.find_elements(By.CLASS_NAME, "product-tile-set")
+            print(len(elements))
+            # Extract the script content
+            for element in elements:
                 try:
-                    image = element.find_element(By.CLASS_NAME, "img-responsive")
-                    image_url = image.get_dom_attribute("src")
-                except:
+                    driver.execute_script("arguments[0].scrollIntoView();", element)
+
                     image_url = ""
 
-                download_url = ""
-                price = ""
-                category = ""
-                weight = ""
-                unit = ""
-                download_url = ""
-                rating = ""
-                rating_count = ""
-                product_link = ""
-                title = ""
+                    try:
+                        image = element.find_element(By.CLASS_NAME, "img-responsive")
+                        image_url = image.get_dom_attribute("src")
+                    except:
+                        image_url = ""
 
-                try:
-                    descriptionElement = element.find_element(By.CLASS_NAME, "description")
-                    anchor = descriptionElement.find_element(By.TAG_NAME, 'a')
-                    product_link = anchor.get_dom_attribute("href")
-                    title = anchor.text
-                except:
-                    product_link = ""
-                    title = ""
-                category = "babies-clothing"
-
-                try:
-                    description = element.find_element(By.CLASS_NAME, "product-features").text
-                except:
-                    description = ""
-                try:
-                    price = element.find_element(By.CLASS_NAME, "price").text
-                except:
+                    download_url = ""
                     price = ""
-
-                try:
-                    rating_string = element.find_element(By.CLASS_NAME, "offscreen").text
-                    pattern = r"Rated ([0-9.]+) out of 5 stars based on (\d+) reviews\."
-                    match = re.search(pattern, rating_string)
-
-                    if match:
-                        rating = match.group(1) 
-                        rating_count = match.group(2)
-                    else:
-                        rating = ""
-                        rating_count = ""
-                except:
+                    category = ""
+                    weight = ""
+                    unit = ""
+                    download_url = ""
                     rating = ""
                     rating_count = ""
-                if(image_url):
-                    try:
-                        responseImage = requests.get(image_url)
-                        image_type = imghdr.what(None, responseImage.content)
-                        if responseImage.status_code == 200:
-                            img_url = "products/"+current_time+"/images/"+prefix+str(section_id)+'.'+image_type
-                            with open(img_url, 'wb') as file:
-                                file.write(responseImage.content)
-                                download_url = img_url
-                        # download_url = "products/"+current_time+"/images/"+prefix+str(section_id)+'.'+"jpg"
-                    except Exception as e:
-                        print(e)
-                # print(rating)
+                    product_link = ""
+                    title = ""
 
-                record = [
-                    str(section_id),
-                    "https://www.costco.com",
-                    product_link,
-                    "Costco",
-                    category,
-                    description,
-                    title,
-                    weight,
-                    unit,
-                    price,
-                    download_url,
-                    image_url,
-                    "",
-                    "",
-                    rating,
-                    rating_count,
-                    "999 Lake Drive Issaquah, WA 98027",
-                    "+1(425)313-8100",
-                    "47.530101",
-                    "-122.032619",
-                    "",
-                ]
-                
-                products.append(record)
-                print(record)
-                section_id = section_id + 1
-            except Exception as e:
-                print(e)
+                    try:
+                        descriptionElement = element.find_element(By.CLASS_NAME, "description")
+                        anchor = descriptionElement.find_element(By.TAG_NAME, 'a')
+                        product_link = anchor.get_dom_attribute("href")
+                        title = anchor.text
+                    except:
+                        product_link = ""
+                        title = ""
+                    category = url
+
+                    try:
+                        description = element.find_element(By.CLASS_NAME, "product-features").text
+                    except:
+                        description = ""
+                    try:
+                        price = element.find_element(By.CLASS_NAME, "price").text
+                    except:
+                        price = ""
+
+                    try:
+                        rating_string = element.find_element(By.CLASS_NAME, "offscreen").text
+                        pattern = r"Rated ([0-9.]+) out of 5 stars based on (\d+) reviews\."
+                        match = re.search(pattern, rating_string)
+
+                        if match:
+                            rating = match.group(1) 
+                            rating_count = match.group(2)
+                        else:
+                            rating = ""
+                            rating_count = ""
+                    except:
+                        rating = ""
+                        rating_count = ""
+                    if(image_url):
+                        try:
+                            responseImage = requests.get(image_url)
+                            image_type = imghdr.what(None, responseImage.content)
+                            if responseImage.status_code == 200:
+                                img_url = "products/"+current_time+"/images/"+prefix+str(section_id)+'.'+image_type
+                                with open(img_url, 'wb') as file:
+                                    file.write(responseImage.content)
+                                    download_url = img_url
+                            # download_url = "products/"+current_time+"/images/"+prefix+str(section_id)+'.'+"jpg"
+                        except Exception as e:
+                            print(e)
+                    # print(rating)
+
+                    record = [
+                        str(section_id),
+                        "https://www.costco.com",
+                        product_link,
+                        "Costco",
+                        category,
+                        description,
+                        title,
+                        weight,
+                        unit,
+                        price,
+                        download_url,
+                        image_url,
+                        "",
+                        "",
+                        rating,
+                        rating_count,
+                        "999 Lake Drive Issaquah, WA 98027",
+                        "+1(425)313-8100",
+                        "47.530101",
+                        "-122.032619",
+                        "",
+                    ]
+                    
+                    products.append(record)
+                    print(record)
+                    section_id = section_id + 1
+                except Exception as e:
+                    print(e)
+        count = count + 1
     
     driver.quit()
 
@@ -162,7 +219,8 @@ if __name__ == "__main__":
         first_col.width = 256 * widths[col_index]  # 20 characters wide
         sheet.write(0, col_index, value, style)
     
-    records = get_product_list(driver=driver)
+    urls = get_categories(driver=driver)
+    records = get_product_list(driver=driver, urls=urls)
         
     for row_index, row in enumerate(records):
         for col_index, value in enumerate(row):
