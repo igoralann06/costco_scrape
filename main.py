@@ -51,6 +51,18 @@ def is_relative_url(string):
 
 def get_categories(driver: CustomWebDriver):
     global categories
+
+    driver.get("https://www.costco.com/LogonForm")
+
+    email_field = driver.find_element(By.ID, "signInName")
+    password_field = driver.find_element(By.ID, "password")
+    
+    email_field.send_keys("dearjafer@gmail.com")
+    password_field.send_keys("Welcome1@3$%")
+    
+    password_field.send_keys(Keys.RETURN)
+    time.sleep(30)
+
     urls = []
     for category in categories:
         driver.get(category)
