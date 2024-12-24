@@ -58,7 +58,7 @@ def get_categories(driver: CustomWebDriver):
     password_field = driver.find_element(By.ID, "password")
     
     email_field.send_keys("dearjafer@gmail.com")
-    password_field.send_keys("Welcome1@3$%")
+    password_field.send_keys("Welcome1@3")
     
     password_field.send_keys(Keys.RETURN)
     time.sleep(30)
